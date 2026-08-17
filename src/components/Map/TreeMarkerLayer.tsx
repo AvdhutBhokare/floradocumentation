@@ -35,11 +35,39 @@ export function TreeMarkerLayer({ trees }: Props) {
   // yet dropped or cancelled). Only one at a time, on purpose — see
   // lockUnlockedMarker/unlockMarkerForDrag below.
   const unlockedRef = useRef<{ id: string; marker: L.Marker } | null>(null);
+  // MarkerClusterGroup intercepts pointer events — a marker must be lifted
+  // onto the map layer directly before Leaflet dragging can work.
+  const liftedForDragRef = useRef<{ marker: L.Marker; fromCluster: boolean } | null>(null);
 
   const selectedTreeId = useFloraStore((s) => s.selectedTreeId);
   const selectTree = useFloraStore((s) => s.selectTree);
   const updateTreeCoordinates = useFloraStore((s) => s.updateTreeCoordinates);
   const deleteTreeAction = useFloraStore((s) => s.deleteTree);
+
+  const reattachMarkerToCluster = (marker: L.Marker) => {
+    const lifted = liftedForDragRef.current;
+    if (!lifted || lifted.marker !== marker) return;
+    liftedForDragRef.current = null;
+
+    const group = clusterGroupRef.current;
+    if (!lifted.fromCluster || !group) return;
+
+    if (map.hasLayer(marker)) map.removeLayer(marker);
+    if (!group.hasLayer(marker)) group.addLayer(marker);
+  };
+
+  const liftMarkerForDrag = (marker: L.Marker) => {
+    const group = clusterGroupRef.current;
+    if (!group) return;
+
+    if (group.hasLayer(marker)) {
+      group.removeLayer(marker);
+      map.addLayer(marker);
+      liftedForDragRef.current = { marker, fromCluster: true };
+    } else if (map.hasLayer(marker)) {
+      liftedForDragRef.current = { marker, fromCluster: false };
+    }
+  };
 
   // Re-locks whatever marker is currently unlocked (if any) — used when the
   // drag completes, when a different marker is unlocked, when the map is
@@ -49,6 +77,7 @@ export function TreeMarkerLayer({ trees }: Props) {
     if (!current) return;
     current.marker.dragging?.disable();
     current.marker.getElement()?.classList.remove('flora-marker-unlocked');
+    reattachMarkerToCluster(current.marker);
     unlockedRef.current = null;
   };
 
@@ -58,6 +87,7 @@ export function TreeMarkerLayer({ trees }: Props) {
   const unlockMarkerForDrag = (id: string, marker: L.Marker) => {
     if (unlockedRef.current?.id === id) return; // already unlocked
     lockUnlockedMarker(); // only one marker unlocked at a time
+    liftMarkerForDrag(marker);
     marker.dragging?.enable();
     marker.getElement()?.classList.add('flora-marker-unlocked');
     unlockedRef.current = { id, marker };
@@ -82,6 +112,7 @@ export function TreeMarkerLayer({ trees }: Props) {
       clusterGroupRef.current = null;
       markersById.current.clear();
       unlockedRef.current = null;
+      liftedForDragRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
@@ -137,12 +168,20 @@ export function TreeMarkerLayer({ trees }: Props) {
       const icon = getTreeIcon(state);
 
       if (existingMarker) {
+        const isUnlocked = unlockedRef.current?.id === tree.id;
         const cur = existingMarker.getLatLng();
         if (cur.lat !== latlng.lat || cur.lng !== latlng.lng) {
           existingMarker.setLatLng(latlng);
         }
         existingMarker.setIcon(icon);
         existingMarker.setPopupContent(buildPopupContent(tree));
+        // Never pull an unlocked (lifted) marker back into the cluster mid-drag.
+        if (!isUnlocked && liftedForDragRef.current?.marker !== existingMarker) {
+          const group = clusterGroupRef.current;
+          if (group && !group.hasLayer(existingMarker) && !map.hasLayer(existingMarker)) {
+            group.addLayer(existingMarker);
+          }
+        }
       } else {
         // draggable: false by default — this is the safety mechanism.
         // Panning/clicking around the map can never move a tree; only an
@@ -194,6 +233,9 @@ export function TreeMarkerLayer({ trees }: Props) {
             if (target.closest('[data-action="edit"]')) {
               selectTree(tree.id, 'map');
               window.dispatchEvent(new CustomEvent('flora:edit-tree', { detail: { id: tree.id } }));
+            } else if (target.closest('[data-action="unlock-drag"]')) {
+              marker.closePopup();
+              unlockMarkerForDrag(tree.id, marker);
             } else if (target.closest('[data-action="delete"]')) {
               window.dispatchEvent(new CustomEvent('flora:delete-tree', { detail: { id: tree.id } }));
             }
@@ -221,6 +263,7 @@ export function TreeMarkerLayer({ trees }: Props) {
         if (marker.isPopupOpen()) marker.closePopup();
         // A removed marker can't stay "unlocked" — drop any stale reference.
         if (unlockedRef.current?.marker === marker) unlockedRef.current = null;
+        if (liftedForDragRef.current?.marker === marker) liftedForDragRef.current = null;
       }
       group.removeLayers(toRemove);
     }
@@ -243,6 +286,9 @@ export function TreeMarkerLayer({ trees }: Props) {
       // popup is still open.
       markersById.current.get(id)?.closePopup();
       if (unlockedRef.current?.id === id) unlockedRef.current = null;
+      if (liftedForDragRef.current?.marker === markersById.current.get(id)) {
+        liftedForDragRef.current = null;
+      }
       if (window.confirm(`Delete ${id}?\n\nThis will remove the tree from the current dataset.`)) {
         deleteTreeAction(id);
       }
@@ -282,8 +328,9 @@ function buildPopupContent(tree: TreeRecord): string {
       <div class="flora-popup-row"><span>Height</span><strong>${tree.height ?? '—'} m</strong></div>
       <div class="flora-popup-row"><span>Latitude</span><strong>${tree.latitude?.toFixed(6)}</strong></div>
       <div class="flora-popup-row"><span>Longitude</span><strong>${tree.longitude?.toFixed(6)}</strong></div>
-      <div class="flora-popup-hint">Double-click the marker (not this popup) to unlock dragging</div>
+      <div class="flora-popup-hint">Use Move on map, or double-click the marker pin (not this popup)</div>
       <div class="flora-popup-actions">
+        <button data-action="unlock-drag" type="button">Move on map</button>
         <button data-action="edit" type="button">Edit</button>
         <button data-action="delete" type="button" class="danger">Delete</button>
       </div>

@@ -9,6 +9,7 @@ import { MapInteractionLayer } from './MapInteractionLayer';
 import { MapFocusController } from './MapFocusController';
 import { legendColor } from './markerIcons';
 import { MAP_MAX_ZOOM, SATELLITE_TILE, STREET_TILE } from '../../config/baseMapTiles';
+import { filterBoundaryZones } from '../../services/gis/zoneBoundaries';
 
 const DEFAULT_CENTER: [number, number] = [18.5204, 73.8567]; // Pune, India — sensible default for this project
 
@@ -220,8 +221,11 @@ function FitAllButton({ trees, zones }: { trees: TreeRecord[]; zones: ReturnType
   }, [trees, map]);
 
   const fitZones = useCallback(() => {
-    if (zones.length === 0) return;
-    const layer = L.geoJSON(zones.map((z) => ({ type: 'Feature', geometry: z.geometry, properties: {} })) as GeoJSON.Feature[]);
+    const boundaries = filterBoundaryZones(zones);
+    if (boundaries.length === 0) return;
+    const layer = L.geoJSON(
+      boundaries.map((z) => ({ type: 'Feature', geometry: z.geometry, properties: {} })) as GeoJSON.Feature[]
+    );
     const bounds = layer.getBounds();
     if (bounds.isValid()) map.flyToBounds(bounds, { padding: [40, 40], duration: 0.6 });
   }, [zones, map]);

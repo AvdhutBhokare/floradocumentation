@@ -68,4 +68,36 @@ describe('parseKmlFile', () => {
     const zones = await parseKmlFile(makeFile(unnamedKml));
     expect(zones.some((z) => z.name.startsWith('Zone '))).toBe(true);
   });
+
+  it('imports polygon boundaries but skips point and line placemarks', async () => {
+    const mixedKml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <Placemark>
+    <name>Zone A</name>
+    <Polygon>
+      <outerBoundaryIs>
+        <LinearRing>
+          <coordinates>73.856,18.520,0 73.858,18.520,0 73.858,18.522,0 73.856,18.522,0 73.856,18.520,0</coordinates>
+        </LinearRing>
+      </outerBoundaryIs>
+    </Polygon>
+  </Placemark>
+  <Placemark>
+    <name>Tree pin</name>
+    <Point><coordinates>73.857,18.521,0</coordinates></Point>
+  </Placemark>
+  <Placemark>
+    <name>Track</name>
+    <LineString>
+      <coordinates>73.856,18.520,0 73.858,18.522,0</coordinates>
+    </LineString>
+  </Placemark>
+</Document>
+</kml>`;
+    const zones = await parseKmlFile(makeFile(mixedKml));
+    expect(zones).toHaveLength(1);
+    expect(zones[0].name).toBe('Zone A');
+    expect(zones[0].geometry.type).toBe('Polygon');
+  });
 });

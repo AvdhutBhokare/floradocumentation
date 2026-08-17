@@ -1,6 +1,7 @@
 import { GeoJSON } from 'react-leaflet';
 import type { Layer, PathOptions } from 'leaflet';
 import type { ZoneFeature } from '../../types/tree';
+import { isBoundaryGeometry } from '../../services/gis/zoneBoundaries';
 import { useFloraStore } from '../../store/useFloraStore';
 
 interface Props {
@@ -15,9 +16,12 @@ export function ZonePolygonLayer({ zones, visible }: Props) {
 
   if (!visible || zones.length === 0) return null;
 
+  const boundaryZones = zones.filter((zone) => isBoundaryGeometry(zone.geometry));
+  if (boundaryZones.length === 0) return null;
+
   return (
     <>
-      {zones.map((zone) => {
+      {boundaryZones.map((zone) => {
         const isSelected = zone.name === selectedZoneName;
         const dimmed = zoneReviewMode && selectedZoneName && !isSelected;
 

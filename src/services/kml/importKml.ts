@@ -51,21 +51,18 @@ export async function parseKmlFile(file: File): Promise<ZoneFeature[]> {
 
   const zones: ZoneFeature[] = [];
   let unnamedCount = 0;
+  let skippedNonBoundary = 0;
 
   for (const feature of geojson.features) {
     if (!feature.geometry) continue;
 
-    const supportedTypes = [
-      'Polygon',
-      'MultiPolygon',
-      'LineString',
-      'MultiLineString',
-      'Point',
-    ];
-    if (!supportedTypes.includes(feature.geometry.type)) {
-      // Unsupported geometry (e.g. GeometryCollection with nested types we
-      // don't render) — skip this feature but keep processing the rest of
-      // the file rather than failing the whole import.
+    // Zone boundaries are polygons only. Real-world KML exports often bundle
+    // point placemarks (tree pins with custom icons) and GPS track lines
+    // alongside the actual boundary polygons — importing those as "zones"
+    // renders broken icon images and spaghetti lines on the map.
+    const boundaryTypes = ['Polygon', 'MultiPolygon'] as const;
+    if (!boundaryTypes.includes(feature.geometry.type as (typeof boundaryTypes)[number])) {
+      skippedNonBoundary++;
       continue;
     }
 
@@ -86,8 +83,12 @@ export async function parseKmlFile(file: File): Promise<ZoneFeature[]> {
   }
 
   if (zones.length === 0) {
+    const hint =
+      skippedNonBoundary > 0
+        ? ` Found ${skippedNonBoundary} point/line feature(s) which are not zone boundaries — only polygon boundaries are imported.`
+        : '';
     throw new KmlImportError(
-      `"${file.name}" was parsed but contained no supported polygon, line, or point geometry.`
+      `"${file.name}" was parsed but contained no polygon zone boundaries.${hint}`
     );
   }
 

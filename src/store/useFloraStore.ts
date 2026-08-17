@@ -12,6 +12,7 @@ import { rowsToTreeRecords } from '../services/excel/importExcel';
 import { nextTreeId } from '../utils/ids';
 import { validateCoordinatePair } from '../utils/coordinates';
 import { detectZoneForPoint } from '../services/gis/zoneDetection';
+import { filterBoundaryZones } from '../services/gis/zoneBoundaries';
 import { saveSnapshot, loadSnapshot, type PersistedState } from '../services/persistence/db';
 
 export type FilterState = {
@@ -154,12 +155,18 @@ export const useFloraStore = create<FloraState>((set, get) => ({
   hydrate: async () => {
     const snap = await loadSnapshot();
     if (snap) {
+      // Older saves (and imports before the polygon-only KML fix) may contain
+      // point/line placemarks stored as zones — strip them on load so a
+      // Vercel deploy picks up the fix even when IndexedDB still has bad data.
+      const zones = filterBoundaryZones(snap.zones);
+      const zonesSanitized = zones.length !== snap.zones.length;
       set({
         project: snap.meta,
         trees: snap.trees,
-        zones: snap.zones,
+        zones,
         zoneReview: snap.zoneReview,
         hydrated: true,
+        dirty: zonesSanitized,
       });
     } else {
       set({ hydrated: true });

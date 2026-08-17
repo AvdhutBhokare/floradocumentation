@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useFloraStore } from './useFloraStore';
 import type { TreeRecord, ZoneReviewStatus } from '../types/tree';
+import { filterBoundaryZones } from '../services/gis/zoneBoundaries';
 
 export function isTreeMapped(t: TreeRecord): boolean {
   return t.latitude !== null && t.longitude !== null;
@@ -71,7 +72,7 @@ export function useZoneStatsList(): ZoneStats[] {
 
   return useMemo(() => {
     const zoneNames = new Set<string>();
-    zones.forEach((z) => zoneNames.add(z.name));
+    filterBoundaryZones(zones).forEach((z) => zoneNames.add(z.name));
     trees.forEach((t) => {
       if (t.zoneName) zoneNames.add(t.zoneName);
     });
@@ -109,7 +110,7 @@ export function useDashboardStats(): DashboardStats {
 
   return useMemo(() => {
     const zoneNames = new Set<string>();
-    zones.forEach((z) => zoneNames.add(z.name));
+    filterBoundaryZones(zones).forEach((z) => zoneNames.add(z.name));
     trees.forEach((t) => {
       if (t.zoneName) zoneNames.add(t.zoneName);
     });
@@ -142,7 +143,7 @@ export function useZoneNameList(): string[] {
   const zones = useFloraStore((s) => s.zones);
   return useMemo(() => {
     const set = new Set<string>();
-    zones.forEach((z) => set.add(z.name));
+    filterBoundaryZones(zones).forEach((z) => set.add(z.name));
     trees.forEach((t) => {
       if (t.zoneName.trim()) set.add(t.zoneName.trim());
     });
