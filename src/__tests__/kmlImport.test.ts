@@ -69,7 +69,7 @@ describe('parseKmlFile', () => {
     expect(zones.some((z) => z.name.startsWith('Zone '))).toBe(true);
   });
 
-  it('imports polygon boundaries but skips point and line placemarks', async () => {
+  it('imports every placemark geometry and preserves KML style properties', async () => {
     const mixedKml = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
 <Document>
@@ -96,8 +96,8 @@ describe('parseKmlFile', () => {
 </Document>
 </kml>`;
     const zones = await parseKmlFile(makeFile(mixedKml));
-    expect(zones).toHaveLength(1);
-    expect(zones[0].name).toBe('Zone A');
-    expect(zones[0].geometry.type).toBe('Polygon');
+    expect(zones).toHaveLength(3);
+    expect(zones.map((z) => z.geometry.type).sort()).toEqual(['LineString', 'Point', 'Polygon']);
+    expect(zones.every((z) => z.properties !== undefined)).toBe(true);
   });
 });

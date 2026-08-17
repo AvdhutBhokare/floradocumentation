@@ -45,6 +45,8 @@ export interface ZoneFeature {
   geometry: GeoJSON.Geometry;
   color: string;
   sourceFile: string;
+  /** Original KML / Simplestyle properties from togeojson (stroke, fill, icon, …). */
+  properties?: Record<string, unknown>;
 }
 
 export type ZoneReviewStatus = 'Not Reviewed' | 'Needs Data' | 'Reviewed' | 'Completed';

@@ -67,16 +67,13 @@ html, body, #root {
   transition: filter 0.15s ease-out;
 }
 
-/* Safety mechanism: markers are locked (not draggable) by default so
-   panning/zooming/clicking around the map can never accidentally move a
-   tree. Double-clicking a marker unlocks it — this glow + pulse + grab
-   cursor is the only visual cue that dragging is currently armed. */
-.flora-tree-marker.flora-marker-unlocked {
+/* Reposition mode: the active tree pin is lifted out of the cluster and draggable. */
+.flora-tree-marker.flora-marker-repositioning {
   filter: drop-shadow(0 0 0 rgba(224, 167, 58, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
   animation: flora-marker-pulse 1.1s ease-in-out infinite;
   cursor: grab;
 }
-.flora-tree-marker.flora-marker-unlocked:active {
+.flora-tree-marker.flora-marker-repositioning:active {
   cursor: grabbing;
   animation: none;
 }

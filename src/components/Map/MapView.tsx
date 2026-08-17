@@ -9,7 +9,6 @@ import { MapInteractionLayer } from './MapInteractionLayer';
 import { MapFocusController } from './MapFocusController';
 import { legendColor } from './markerIcons';
 import { MAP_MAX_ZOOM, SATELLITE_TILE, STREET_TILE } from '../../config/baseMapTiles';
-import { filterBoundaryZones } from '../../services/gis/zoneBoundaries';
 
 const DEFAULT_CENTER: [number, number] = [18.5204, 73.8567]; // Pune, India — sensible default for this project
 
@@ -31,6 +30,8 @@ export function MapView({ trees }: Props) {
   const addTreeArmed = useFloraStore((s) => s.addTreeArmed);
   const setAddTreeArmed = useFloraStore((s) => s.setAddTreeArmed);
   const selectedZoneName = useFloraStore((s) => s.selectedZoneName);
+  const repositioningTreeId = useFloraStore((s) => s.repositioningTreeId);
+  const cancelRepositionTree = useFloraStore((s) => s.cancelRepositionTree);
 
   const [baseMap, setBaseMap] = useState<BaseMap>('street');
   const [layers, setLayers] = useState<LayerVisibility>({
@@ -106,6 +107,18 @@ export function MapView({ trees }: Props) {
         {selectedZoneName && (
           <div className="pointer-events-auto rounded-md border border-hairline bg-bark-850/95 px-3 py-1.5 font-sans text-xs text-paper-200 shadow-lg">
             Zone focus: <span className="font-semibold text-selected">{selectedZoneName}</span>
+          </div>
+        )}
+        {repositioningTreeId && (
+          <div className="pointer-events-auto flex items-center gap-3 rounded-md border border-flag/50 bg-bark-850/95 px-3 py-2 font-sans text-xs text-paper-100 shadow-lg">
+            <span>Drag the pin to its new location, then release.</span>
+            <button
+              type="button"
+              onClick={cancelRepositionTree}
+              className="rounded border border-hairline px-2 py-1 font-medium text-paper-200 hover:bg-bark-800"
+            >
+              Cancel
+            </button>
           </div>
         )}
       </div>
@@ -221,10 +234,9 @@ function FitAllButton({ trees, zones }: { trees: TreeRecord[]; zones: ReturnType
   }, [trees, map]);
 
   const fitZones = useCallback(() => {
-    const boundaries = filterBoundaryZones(zones);
-    if (boundaries.length === 0) return;
+    if (zones.length === 0) return;
     const layer = L.geoJSON(
-      boundaries.map((z) => ({ type: 'Feature', geometry: z.geometry, properties: {} })) as GeoJSON.Feature[]
+      zones.map((z) => ({ type: 'Feature', geometry: z.geometry, properties: {} })) as GeoJSON.Feature[]
     );
     const bounds = layer.getBounds();
     if (bounds.isValid()) map.flyToBounds(bounds, { padding: [40, 40], duration: 0.6 });

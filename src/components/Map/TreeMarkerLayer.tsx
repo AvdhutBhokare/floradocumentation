@@ -6,6 +6,7 @@ import type { TreeRecord } from '../../types/tree';
 import { getTreeIcon, markerVisualState } from './markerIcons';
 import { useFloraStore } from '../../store/useFloraStore';
 import { showToast } from '../Common/Toast';
+import { MAP_MAX_ZOOM } from '../../config/baseMapTiles';
 
 interface Props {
   trees: TreeRecord[];
@@ -21,80 +22,76 @@ interface Props {
  * markers, one-at-a-time calls each recompute the cluster spatial index and
  * visibly stall the map; the bulk methods recompute it once per batch.
  *
- * IMPORTANT (fixes "deleting one tree removes every marker"): removing a
- * marker from a MarkerClusterGroup while that marker's popup is open can
- * corrupt the cluster's internal spatial index in older/edge-case
- * leaflet.markercluster paths, which visually empties the whole layer. We
- * always close a marker's popup before removing it to avoid that.
+ * Repositioning: click "Reposition" in a marker popup (or the map banner).
+ * That lifts the pin out of the cluster group onto the map layer — the only
+ * reliable way to make Leaflet dragging work — zooms in, and arms drag until
+ * the pin is dropped or Cancel / Escape is pressed.
  */
 export function TreeMarkerLayer({ trees }: Props) {
   const map = useMap();
   const clusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
   const markersById = useRef<Map<string, L.Marker>>(new Map());
-  // The one marker currently "unlocked" for dragging (double-clicked, not
-  // yet dropped or cancelled). Only one at a time, on purpose — see
-  // lockUnlockedMarker/unlockMarkerForDrag below.
-  const unlockedRef = useRef<{ id: string; marker: L.Marker } | null>(null);
-  // MarkerClusterGroup intercepts pointer events — a marker must be lifted
-  // onto the map layer directly before Leaflet dragging can work.
-  const liftedForDragRef = useRef<{ marker: L.Marker; fromCluster: boolean } | null>(null);
+  const repositionMarkerRef = useRef<L.Marker | null>(null);
+  const isDraggingRef = useRef(false);
 
   const selectedTreeId = useFloraStore((s) => s.selectedTreeId);
+  const repositioningTreeId = useFloraStore((s) => s.repositioningTreeId);
   const selectTree = useFloraStore((s) => s.selectTree);
+  const startRepositionTree = useFloraStore((s) => s.startRepositionTree);
+  const cancelRepositionTree = useFloraStore((s) => s.cancelRepositionTree);
   const updateTreeCoordinates = useFloraStore((s) => s.updateTreeCoordinates);
   const deleteTreeAction = useFloraStore((s) => s.deleteTree);
 
-  const reattachMarkerToCluster = (marker: L.Marker) => {
-    const lifted = liftedForDragRef.current;
-    if (!lifted || lifted.marker !== marker) return;
-    liftedForDragRef.current = null;
+  const finishReposition = (marker: L.Marker) => {
+    marker.dragging?.disable();
+    marker.getElement()?.classList.remove('flora-marker-repositioning');
 
     const group = clusterGroupRef.current;
-    if (!lifted.fromCluster || !group) return;
-
-    if (map.hasLayer(marker)) map.removeLayer(marker);
-    if (!group.hasLayer(marker)) group.addLayer(marker);
+    if (group && map.hasLayer(marker)) {
+      map.removeLayer(marker);
+      if (!group.hasLayer(marker)) group.addLayer(marker);
+    }
+    if (repositionMarkerRef.current === marker) repositionMarkerRef.current = null;
   };
 
-  const liftMarkerForDrag = (marker: L.Marker) => {
-    const group = clusterGroupRef.current;
-    if (!group) return;
+  const beginReposition = (id: string, marker: L.Marker) => {
+    const tree = trees.find((t) => t.id === id);
+    if (!tree || tree.latitude === null || tree.longitude === null) return;
 
-    if (group.hasLayer(marker)) {
+    // Tear down any in-progress reposition first.
+    if (repositionMarkerRef.current && repositionMarkerRef.current !== marker) {
+      finishReposition(repositionMarkerRef.current);
+    }
+
+    const group = clusterGroupRef.current;
+    if (group?.hasLayer(marker)) {
       group.removeLayer(marker);
       map.addLayer(marker);
-      liftedForDragRef.current = { marker, fromCluster: true };
-    } else if (map.hasLayer(marker)) {
-      liftedForDragRef.current = { marker, fromCluster: false };
+    } else if (!map.hasLayer(marker)) {
+      map.addLayer(marker);
     }
-  };
 
-  // Re-locks whatever marker is currently unlocked (if any) — used when the
-  // drag completes, when a different marker is unlocked, when the map is
-  // clicked elsewhere, and when Escape is pressed.
-  const lockUnlockedMarker = () => {
-    const current = unlockedRef.current;
-    if (!current) return;
-    current.marker.dragging?.disable();
-    current.marker.getElement()?.classList.remove('flora-marker-unlocked');
-    reattachMarkerToCluster(current.marker);
-    unlockedRef.current = null;
-  };
-
-  // Arms exactly one marker for dragging. Markers are created non-draggable
-  // (Section: safety) precisely so that panning/clicking around the map
-  // never accidentally moves a tree — only an explicit double-click does.
-  const unlockMarkerForDrag = (id: string, marker: L.Marker) => {
-    if (unlockedRef.current?.id === id) return; // already unlocked
-    lockUnlockedMarker(); // only one marker unlocked at a time
-    liftMarkerForDrag(marker);
+    marker.closePopup();
     marker.dragging?.enable();
-    marker.getElement()?.classList.add('flora-marker-unlocked');
-    unlockedRef.current = { id, marker };
-    showToast('Marker unlocked — drag it now, or click elsewhere to lock');
+    marker.getElement()?.classList.add('flora-marker-repositioning');
+    repositionMarkerRef.current = marker;
+
+    map.flyTo([tree.latitude, tree.longitude], Math.min(Math.max(map.getZoom(), 20), MAP_MAX_ZOOM), {
+      duration: 0.45,
+    });
   };
 
-  // Create the cluster group once.
+  // Sync reposition mode from the store (popup button / external callers).
+  useEffect(() => {
+    if (!repositioningTreeId) {
+      if (repositionMarkerRef.current) finishReposition(repositionMarkerRef.current);
+      return;
+    }
+    const marker = markersById.current.get(repositioningTreeId);
+    if (marker) beginReposition(repositioningTreeId, marker);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repositioningTreeId]);
+
   useEffect(() => {
     const group = L.markerClusterGroup({
       chunkedLoading: true,
@@ -111,37 +108,21 @@ export function TreeMarkerLayer({ trees }: Props) {
       map.removeLayer(group);
       clusterGroupRef.current = null;
       markersById.current.clear();
-      unlockedRef.current = null;
-      liftedForDragRef.current = null;
+      repositionMarkerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
 
-  // Safety net: clicking anywhere on the map that ISN'T the unlocked marker
-  // itself re-locks it, so double-clicking to unlock and then changing your
-  // mind never leaves a marker armed by accident. (The marker's own click/
-  // dblclick handlers stop propagation, so this only fires for genuine
-  // clicks elsewhere.) Escape does the same from the keyboard.
   useEffect(() => {
-    function handleMapClick() {
-      lockUnlockedMarker();
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && useFloraStore.getState().repositioningTreeId) {
+        cancelRepositionTree();
+      }
     }
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') lockUnlockedMarker();
-    }
-    map.on('click', handleMapClick);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      map.off('click', handleMapClick);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map]);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [cancelRepositionTree]);
 
-  // Diff trees against existing markers: add new, update moved/changed, remove gone.
-  // Adds/removes are collected into arrays and applied via the cluster
-  // group's bulk addLayers/removeLayers so a single edit at 10k+ records
-  // doesn't trigger thousands of individual spatial-index recalculations.
   useEffect(() => {
     const group = clusterGroupRef.current;
     if (!group) return;
@@ -168,34 +149,22 @@ export function TreeMarkerLayer({ trees }: Props) {
       const icon = getTreeIcon(state);
 
       if (existingMarker) {
-        const isUnlocked = unlockedRef.current?.id === tree.id;
+        const isRepositioning = repositioningTreeId === tree.id;
         const cur = existingMarker.getLatLng();
-        if (cur.lat !== latlng.lat || cur.lng !== latlng.lng) {
+        if (!isDraggingRef.current && (cur.lat !== latlng.lat || cur.lng !== latlng.lng)) {
           existingMarker.setLatLng(latlng);
         }
         existingMarker.setIcon(icon);
         existingMarker.setPopupContent(buildPopupContent(tree));
-        // Never pull an unlocked (lifted) marker back into the cluster mid-drag.
-        if (!isUnlocked && liftedForDragRef.current?.marker !== existingMarker) {
-          const group = clusterGroupRef.current;
-          if (group && !group.hasLayer(existingMarker) && !map.hasLayer(existingMarker)) {
-            group.addLayer(existingMarker);
-          }
+        if (
+          !isRepositioning &&
+          repositionMarkerRef.current !== existingMarker &&
+          !group.hasLayer(existingMarker) &&
+          !map.hasLayer(existingMarker)
+        ) {
+          group.addLayer(existingMarker);
         }
       } else {
-        // draggable: false by default — this is the safety mechanism.
-        // Panning/clicking around the map can never move a tree; only an
-        // explicit double-click (below) arms this specific marker.
-        //
-        // NOTE: this marker deliberately has no bound tooltip. An earlier
-        // revision bound one ("double-click to unlock...") to explain the
-        // interaction, but Leaflet tooltips don't set pointer-events: none
-        // by default — with markers this close together, an open tooltip
-        // box can sit directly on top of a neighboring marker and swallow
-        // the very clicks needed to select or double-click it. That's what
-        // caused both the "harsh popup blocking the map" complaint and,
-        // very likely, "dragging doesn't work" — clicks were landing on a
-        // stray tooltip instead of the marker underneath it.
         const marker = L.marker(latlng, { icon, draggable: false, riseOnHover: true });
         marker.bindPopup(buildPopupContent(tree), { minWidth: 220 });
 
@@ -204,38 +173,31 @@ export function TreeMarkerLayer({ trees }: Props) {
           selectTree(tree.id, 'map');
         });
 
-        marker.on('dblclick', (e) => {
-          L.DomEvent.stopPropagation(e);
-          unlockMarkerForDrag(tree.id, marker);
+        marker.on('dragstart', () => {
+          isDraggingRef.current = true;
         });
 
         marker.on('dragend', () => {
+          isDraggingRef.current = false;
+          if (useFloraStore.getState().repositioningTreeId !== tree.id) return;
           const pos = marker.getLatLng();
           updateTreeCoordinates(tree.id, pos.lat, pos.lng);
           showToast(`${tree.id} location updated`);
-          // Re-lock immediately after the drop — dragging one tree should
-          // never leave the next accidental drag armed too.
-          lockUnlockedMarker();
+          cancelRepositionTree();
+          finishReposition(marker);
         });
 
-        // Delegate clicks on the popup's Edit/Delete buttons via a single
-        // listener bound once (guarded by data-bound) instead of re-binding
-        // a fresh listener every time the popup reopens — the previous
-        // version added a new listener on every popupopen without ever
-        // removing the old one, so listener count (and duplicate dispatched
-        // events) grew every time the same marker's popup was reopened.
         marker.on('popupopen', () => {
           const el = marker.getPopup()?.getElement();
           if (!el || el.dataset.floraBound === 'true') return;
           el.dataset.floraBound = 'true';
           el.addEventListener('click', (evt) => {
             const target = evt.target as HTMLElement;
-            if (target.closest('[data-action="edit"]')) {
+            if (target.closest('[data-action="reposition"]')) {
+              startRepositionTree(tree.id);
+            } else if (target.closest('[data-action="edit"]')) {
               selectTree(tree.id, 'map');
               window.dispatchEvent(new CustomEvent('flora:edit-tree', { detail: { id: tree.id } }));
-            } else if (target.closest('[data-action="unlock-drag"]')) {
-              marker.closePopup();
-              unlockMarkerForDrag(tree.id, marker);
             } else if (target.closest('[data-action="delete"]')) {
               window.dispatchEvent(new CustomEvent('flora:delete-tree', { detail: { id: tree.id } }));
             }
@@ -247,7 +209,6 @@ export function TreeMarkerLayer({ trees }: Props) {
       }
     }
 
-    // Remove markers whose tree no longer exists in the (filtered) array.
     for (const [id, marker] of byId.entries()) {
       if (!seen.has(id)) {
         toRemove.push(marker);
@@ -256,54 +217,46 @@ export function TreeMarkerLayer({ trees }: Props) {
     }
 
     if (toRemove.length > 0) {
-      // Close popups first — removing a layer whose popup is currently open
-      // is what can corrupt the cluster group's spatial index and make the
-      // whole layer appear to vanish (see file header comment).
       for (const marker of toRemove) {
         if (marker.isPopupOpen()) marker.closePopup();
-        // A removed marker can't stay "unlocked" — drop any stale reference.
-        if (unlockedRef.current?.marker === marker) unlockedRef.current = null;
-        if (liftedForDragRef.current?.marker === marker) liftedForDragRef.current = null;
+        if (repositionMarkerRef.current === marker) repositionMarkerRef.current = null;
       }
       group.removeLayers(toRemove);
+      for (const marker of toRemove) {
+        if (map.hasLayer(marker)) map.removeLayer(marker);
+      }
     }
     if (toAdd.length > 0) {
       group.addLayers(toAdd);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trees, selectedTreeId]);
 
-  // Expose delete confirmation via a lightweight custom event so the popup's
-  // plain DOM button can trigger the same store action + confirm dialog used
-  // elsewhere in the app, without prop-drilling React handlers into Leaflet's
-  // imperative popup HTML.
+    if (repositioningTreeId) {
+      const marker = byId.get(repositioningTreeId);
+      if (marker && repositionMarkerRef.current !== marker) {
+        beginReposition(repositioningTreeId, marker);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trees, selectedTreeId, repositioningTreeId]);
+
   useEffect(() => {
     function handleDelete(e: Event) {
       const id = (e as CustomEvent).detail?.id as string;
       if (!id) return;
-      // Close the popup before the tree-array diff runs and removes this
-      // marker, so we never ask the cluster group to remove a layer whose
-      // popup is still open.
       markersById.current.get(id)?.closePopup();
-      if (unlockedRef.current?.id === id) unlockedRef.current = null;
-      if (liftedForDragRef.current?.marker === markersById.current.get(id)) {
-        liftedForDragRef.current = null;
-      }
+      if (useFloraStore.getState().repositioningTreeId === id) cancelRepositionTree();
       if (window.confirm(`Delete ${id}?\n\nThis will remove the tree from the current dataset.`)) {
         deleteTreeAction(id);
       }
     }
     window.addEventListener('flora:delete-tree', handleDelete);
     return () => window.removeEventListener('flora:delete-tree', handleDelete);
-  }, [deleteTreeAction]);
+  }, [cancelRepositionTree, deleteTreeAction]);
 
-  // Opens a marker's popup on request (e.g. after flying to it from a
-  // spreadsheet row click or search result — Section 22/30).
   useEffect(() => {
     function handleOpenPopup(e: Event) {
       const id = (e as CustomEvent).detail?.id as string;
-      const marker = markersById.current.get(id);
-      marker?.openPopup();
+      markersById.current.get(id)?.openPopup();
     }
     window.addEventListener('flora:open-popup', handleOpenPopup);
     return () => window.removeEventListener('flora:open-popup', handleOpenPopup);
@@ -328,9 +281,8 @@ function buildPopupContent(tree: TreeRecord): string {
       <div class="flora-popup-row"><span>Height</span><strong>${tree.height ?? '—'} m</strong></div>
       <div class="flora-popup-row"><span>Latitude</span><strong>${tree.latitude?.toFixed(6)}</strong></div>
       <div class="flora-popup-row"><span>Longitude</span><strong>${tree.longitude?.toFixed(6)}</strong></div>
-      <div class="flora-popup-hint">Use Move on map, or double-click the marker pin (not this popup)</div>
       <div class="flora-popup-actions">
-        <button data-action="unlock-drag" type="button">Move on map</button>
+        <button data-action="reposition" type="button">Reposition</button>
         <button data-action="edit" type="button">Edit</button>
         <button data-action="delete" type="button" class="danger">Delete</button>
       </div>

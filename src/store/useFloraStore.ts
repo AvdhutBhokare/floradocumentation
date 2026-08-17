@@ -12,7 +12,6 @@ import { rowsToTreeRecords } from '../services/excel/importExcel';
 import { nextTreeId } from '../utils/ids';
 import { validateCoordinatePair } from '../utils/coordinates';
 import { detectZoneForPoint } from '../services/gis/zoneDetection';
-import { filterBoundaryZones } from '../services/gis/zoneBoundaries';
 import { saveSnapshot, loadSnapshot, type PersistedState } from '../services/persistence/db';
 
 export type FilterState = {
@@ -60,6 +59,9 @@ interface FloraState {
   gridFocusNonce: number;
   /** bumped whenever the map should zoom to fit the currently selected zone's polygon */
   zoneFocusNonce: number;
+
+  /** When set, that tree's map pin is lifted out of the cluster and draggable. */
+  repositioningTreeId: string | null;
 
   hydrated: boolean;
   dirty: boolean;
@@ -112,6 +114,8 @@ interface FloraState {
   setZoneReviewMode: (on: boolean) => void;
   setAddTreeArmed: (on: boolean) => void;
   setPendingMapClick: (pt: { lat: number; lng: number } | null) => void;
+  startRepositionTree: (id: string) => void;
+  cancelRepositionTree: () => void;
   setFilters: (patch: Partial<FilterState>) => void;
   resetFilters: () => void;
 
@@ -145,6 +149,7 @@ export const useFloraStore = create<FloraState>((set, get) => ({
   mapFocusNonce: 0,
   gridFocusNonce: 0,
   zoneFocusNonce: 0,
+  repositioningTreeId: null,
 
   hydrated: false,
   dirty: false,
@@ -155,18 +160,12 @@ export const useFloraStore = create<FloraState>((set, get) => ({
   hydrate: async () => {
     const snap = await loadSnapshot();
     if (snap) {
-      // Older saves (and imports before the polygon-only KML fix) may contain
-      // point/line placemarks stored as zones — strip them on load so a
-      // Vercel deploy picks up the fix even when IndexedDB still has bad data.
-      const zones = filterBoundaryZones(snap.zones);
-      const zonesSanitized = zones.length !== snap.zones.length;
       set({
         project: snap.meta,
         trees: snap.trees,
-        zones,
+        zones: snap.zones,
         zoneReview: snap.zoneReview,
         hydrated: true,
-        dirty: zonesSanitized,
       });
     } else {
       set({ hydrated: true });
@@ -494,6 +493,14 @@ export const useFloraStore = create<FloraState>((set, get) => ({
   setZoneReviewMode: (on) => set({ zoneReviewMode: on }),
   setAddTreeArmed: (on) => set({ addTreeArmed: on }),
   setPendingMapClick: (pt) => set({ pendingMapClick: pt }),
+  startRepositionTree: (id) =>
+    set((s) => ({
+      repositioningTreeId: id,
+      selectedTreeId: id,
+      mapFocusNonce: s.mapFocusNonce + 1,
+      addTreeArmed: false,
+    })),
+  cancelRepositionTree: () => set({ repositioningTreeId: null }),
   setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
   resetFilters: () => set({ filters: EMPTY_FILTERS }),
 

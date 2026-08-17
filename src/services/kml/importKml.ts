@@ -5,8 +5,17 @@ import { nextZoneColor } from '../../utils/ids';
 
 export class KmlImportError extends Error {}
 
+const SUPPORTED_GEOMETRY = new Set([
+  'Polygon',
+  'MultiPolygon',
+  'LineString',
+  'MultiLineString',
+  'Point',
+]);
+
 /**
- * Parses a KML File into ZoneFeature polygons/lines.
+ * Parses a KML File into ZoneFeature entries — one per placemark, preserving
+ * KML stroke/fill/icon styling in `properties` for faithful map rendering.
  *
  * KML coordinates are stored as "longitude,latitude,altitude". The DOM
  * parser + @tmcw/togeojson conversion already produces standard GeoJSON
@@ -51,23 +60,12 @@ export async function parseKmlFile(file: File): Promise<ZoneFeature[]> {
 
   const zones: ZoneFeature[] = [];
   let unnamedCount = 0;
-  let skippedNonBoundary = 0;
 
   for (const feature of geojson.features) {
     if (!feature.geometry) continue;
+    if (!SUPPORTED_GEOMETRY.has(feature.geometry.type)) continue;
 
-    // Zone boundaries are polygons only. Real-world KML exports often bundle
-    // point placemarks (tree pins with custom icons) and GPS track lines
-    // alongside the actual boundary polygons — importing those as "zones"
-    // renders broken icon images and spaghetti lines on the map.
-    const boundaryTypes = ['Polygon', 'MultiPolygon'] as const;
-    if (!boundaryTypes.includes(feature.geometry.type as (typeof boundaryTypes)[number])) {
-      skippedNonBoundary++;
-      continue;
-    }
-
-    let name =
-      (feature.properties && (feature.properties.name as string)) || '';
+    let name = (feature.properties && (feature.properties.name as string)) || '';
     if (!name) {
       unnamedCount++;
       name = `Zone ${unnamedCount}`;
@@ -79,16 +77,13 @@ export async function parseKmlFile(file: File): Promise<ZoneFeature[]> {
       geometry: feature.geometry,
       color: nextZoneColor(),
       sourceFile: file.name,
+      properties: feature.properties ? { ...feature.properties } : {},
     });
   }
 
   if (zones.length === 0) {
-    const hint =
-      skippedNonBoundary > 0
-        ? ` Found ${skippedNonBoundary} point/line feature(s) which are not zone boundaries — only polygon boundaries are imported.`
-        : '';
     throw new KmlImportError(
-      `"${file.name}" was parsed but contained no polygon zone boundaries.${hint}`
+      `"${file.name}" was parsed but contained no supported polygon, line, or point geometry.`
     );
   }
 
