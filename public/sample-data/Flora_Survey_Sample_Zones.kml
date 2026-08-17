@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>Flora Survey - Site A Zones</name>
+  <Placemark>
+    <name>Zone A</name>
+    <Polygon>
+      <outerBoundaryIs>
+        <LinearRing>
+          <coordinates>73.856,18.52,0 73.85759999999999,18.52,0 73.85759999999999,18.5216,0 73.856,18.5216,0 73.856,18.52,0</coordinates>
+        </LinearRing>
+      </outerBoundaryIs>
+    </Polygon>
+  </Placemark>
+  <Placemark>
+    <name>Zone B</name>
+    <Polygon>
+      <outerBoundaryIs>
+        <LinearRing>
+          <coordinates>73.85759999999999,18.52,0 73.8592,18.52,0 73.8592,18.5216,0 73.85759999999999,18.5216,0 73.85759999999999,18.52,0</coordinates>
+        </LinearRing>
+      </outerBoundaryIs>
+    </Polygon>
+  </Placemark>
+  <Placemark>
+    <name>Zone C</name>
+    <Polygon>
+      <outerBoundaryIs>
+        <LinearRing>
+          <coordinates>73.856,18.5216,0 73.85759999999999,18.5216,0 73.85759999999999,18.5232,0 73.856,18.5232,0 73.856,18.5216,0</coordinates>
+        </LinearRing>
+      </outerBoundaryIs>
+    </Polygon>
+  </Placemark>
+  <Placemark>
+    <name>Zone D</name>
+    <Polygon>
+      <outerBoundaryIs>
+        <LinearRing>
+          <coordinates>73.85759999999999,18.5216,0 73.8592,18.5216,0 73.8592,18.5232,0 73.85759999999999,18.5232,0 73.85759999999999,18.5216,0</coordinates>
+        </LinearRing>
+      </outerBoundaryIs>
+    </Polygon>
+  </Placemark>
+</Document>
+</kml>

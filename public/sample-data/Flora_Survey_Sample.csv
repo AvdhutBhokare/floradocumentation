@@ -1,0 +1,49 @@
+Tree Species Name,Latitude,Longitude,Zone Name,Existing Tree / New Tree,Height,Remarks,Date,Surveyor,Tree Condition,DBH
+Syzygium cumini,18.520426266848833,73.8562718994199,Zone A,Existing,9.5,,2026-06-06,R. Deshpande,Healthy,40
+Delonix regia,18.520245025464963,73.85612426275232,Zone A,Existing,13.9,,2026-06-18,A. Kulkarni,Healthy,16
+Azadirachta indica,18.520250043299963,73.85679811265176,Zone A,New,13.0,,2026-06-19,S. Joshi,Healthy,10
+Peltophorum pterocarpum,18.52038293329169,73.85745674617202,Zone A,Existing,8.1,,2026-06-17,R. Deshpande,Healthy,35
+Azadirachta indica,18.520705885908704,73.85645300881687,Zone A,Existing,11.7,Near boundary marker,2026-06-13,A. Kulkarni,Healthy,28
+Ficus religiosa,18.52030717941651,73.85679246528099,Zone A,Existing,6.0,,2026-06-02,S. Joshi,Damaged,25
+Tamarindus indica,18.521207577602024,73.85621525572103,Zone A,Existing,12.7,Near boundary marker,2026-06-11,A. Kulkarni,Diseased,30
+Tectona grandis,18.520460841506875,73.8565125666012,Zone A,Existing,8.4,,2026-06-16,S. Joshi,Healthy,19
+Delonix regia,18.520284460230126,73.85668028799192,Zone A,Existing,3.5,,2026-06-19,R. Deshpande,Healthy,11
+Mangifera indica,18.52034393149139,73.85736860593167,Zone A,Existing,3.3,,2026-06-02,R. Deshpande,Diseased,18
+Mangifera indica,18.520693881280252,73.85697272500593,Zone A,Existing,4.1,,2026-06-10,A. Kulkarni,Diseased,30
+Ficus religiosa,18.520346442980994,73.85620410630999,Zone A,Existing,12.8,,2026-06-20,R. Deshpande,Diseased,13
+Delonix regia,18.52071406705094,73.85646175140984,Zone A,Existing,8.7,Near boundary marker,2026-06-17,R. Deshpande,Healthy,15
+Ficus religiosa,18.520205278497798,73.8573427377776,Zone A,New,2.4,,2026-06-18,R. Deshpande,Diseased,43
+Tectona grandis,18.520879921669394,73.8563540289562,Zone A,Existing,10.3,,2026-06-10,A. Kulkarni,Diseased,54
+Ficus religiosa,18.520817275527275,73.85709135175733,Zone A,Existing,7.4,,2026-06-17,A. Kulkarni,Diseased,54
+Delonix regia,18.520906118253627,73.8566843572734,Zone A,Existing,8.3,,2026-06-11,S. Joshi,Damaged,32
+Cassia fistula,18.52069348421534,73.85706304628235,Zone A,Existing,5.1,Near boundary marker,2026-06-12,A. Kulkarni,Diseased,48
+Cassia fistula,18.521298275832347,73.85658947125575,Zone A,Existing,5.3,,2026-06-07,A. Kulkarni,Healthy,57
+Azadirachta indica,18.520111972365747,73.85705253396172,Zone A,Existing,11.4,,2026-06-05,A. Kulkarni,Damaged,30
+Terminalia arjuna,18.520754287239555,73.85746086766484,Zone A,Existing,3.6,,2026-06-10,S. Joshi,Healthy,23
+Azadirachta indica,18.5206291426655,73.85741134151905,Zone A,Existing,12.6,,2026-06-10,A. Kulkarni,Diseased,36
+Delonix regia,18.52078681485101,73.85838331982225,Zone B,Existing,6.5,,2026-06-06,A. Kulkarni,Damaged,59
+Cassia fistula,18.521206509553213,73.85840143323641,Zone B,Existing,10.6,,2026-06-02,S. Joshi,Diseased,11
+Ficus religiosa,18.5208483880381,73.857893693897,Zone B,New,2.3,,2026-06-20,A. Kulkarni,Damaged,50
+Delonix regia,18.52131598413808,73.85837364766462,Zone B,Existing,9.6,Near boundary marker,2026-06-19,A. Kulkarni,Healthy,15
+Tectona grandis,18.521091137364838,73.85793812873966,Zone B,Existing,5.7,,2026-06-13,S. Joshi,Diseased,22
+Mangifera indica,18.520375077609796,73.85816370713589,Zone B,Existing,12.4,,2026-06-13,A. Kulkarni,Diseased,52
+Delonix regia,18.52008130795354,73.85879944067307,Zone B,Existing,11.1,,2026-06-08,S. Joshi,Healthy,35
+Terminalia arjuna,18.520649997934534,73.85902614608209,Zone B,Existing,10.8,,2026-06-20,R. Deshpande,Diseased,54
+Peltophorum pterocarpum,18.52123529810925,73.8588511139013,Zone B,Existing,10.7,,2026-06-07,A. Kulkarni,Diseased,40
+Tamarindus indica,18.52077930542775,73.85820425435035,Zone B,Existing,8.4,,2026-06-19,A. Kulkarni,Healthy,26
+Tectona grandis,18.52034827521065,73.85812472051266,Zone B,Existing,14.0,,2026-06-09,S. Joshi,Damaged,33
+Tectona grandis,18.520701009931983,73.85878159463829,Zone B,Existing,13.0,,2026-06-01,S. Joshi,Damaged,58
+Syzygium cumini,18.520473958211653,73.85899584649665,Zone B,Existing,2.1,,2026-06-07,A. Kulkarni,Healthy,30
+Delonix regia,18.5206942213602,73.85896031996975,Zone B,New,6.8,,2026-06-06,R. Deshpande,Healthy,58
+Peltophorum pterocarpum,18.523016396074073,73.85610305366369,Zone C,Existing,7.2,,2026-06-20,R. Deshpande,Diseased,42
+Mangifera indica,18.52208490243373,73.85650933016248,Zone C,Existing,10.1,,2026-06-09,A. Kulkarni,Damaged,30
+Syzygium cumini,18.522150175823242,73.85661582994278,Zone C,Existing,4.7,,2026-06-03,S. Joshi,Healthy,33
+Delonix regia,18.52301780748449,73.8565350129626,Zone C,Existing,2.8,,2026-06-06,A. Kulkarni,Healthy,30
+Mangifera indica,18.523024969065766,73.8561217453947,Zone C,Existing,6.0,,2026-06-11,A. Kulkarni,Healthy,42
+Peltophorum pterocarpum,18.522941403847305,73.8565085142386,Zone C,Existing,2.2,,2026-06-08,S. Joshi,Healthy,16
+Ficus religiosa,18.522921058647057,73.856390462113,Zone C,Existing,5.8,,2026-06-17,S. Joshi,Damaged,26
+Delonix regia,18.521895983923617,73.85617250293404,Zone C,Existing,7.2,,2026-06-05,R. Deshpande,Healthy,15
+Ficus religiosa,18.52233646047576,73.85652915962822,Zone C,Existing,7.7,,2026-06-06,R. Deshpande,Healthy,26
+Mangifera indica,91.2,73.86,Zone A,Existing,6.4,Near boundary marker,2026-06-10,S. Joshi,Healthy,54
+Syzygium cumini,18.521,200.5,Zone B,New,5.2,,2026-06-16,S. Joshi,Damaged,39
+Delonix regia,,,Zone C,Existing,,,2026-06-03,R. Deshpande,Diseased,

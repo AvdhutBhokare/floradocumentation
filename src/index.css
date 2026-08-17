@@ -1,0 +1,219 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+@import "leaflet.markercluster/dist/MarkerCluster.css";
+@import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+@import "ag-grid-community/styles/ag-grid.css";
+@import "ag-grid-community/styles/ag-theme-quartz.css";
+
+@theme {
+  --font-display: "Space Grotesk", "Segoe UI", sans-serif;
+  --font-sans: "Inter", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+  /* Chrome / structural surfaces */
+  --color-bark-950: #0c1210;
+  --color-bark-900: #12190f;
+  --color-bark-850: #161f16;
+  --color-bark-800: #1b261b;
+  --color-bark-700: #263323;
+  --color-bark-600: #34432f;
+  --color-bark-500: #4a5c44;
+  --color-hairline: #2a362c;
+
+  /* Ledger / paper surfaces (spreadsheet canvas) */
+  --color-paper-100: #eef0e5;
+  --color-paper-200: #e4e7d8;
+  --color-paper-300: #d6dac6;
+
+  /* Status / marker accents */
+  --color-existing: #4c8b5b;
+  --color-existing-dark: #386945;
+  --color-new: #3e7cb1;
+  --color-new-dark: #2f5f88;
+  --color-selected: #e0a73a;
+  --color-unsaved: #8b6fb0;
+  --color-danger: #c1503f;
+  --color-flag: #b8792e;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: var(--color-bark-950);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bark-900);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-bark-600);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-bark-500);
+}
+
+/* ---- Leaflet marker popup (field-ledger styling, no emoji) ---- */
+.flora-tree-marker {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+  transition: filter 0.15s ease-out;
+}
+
+/* Safety mechanism: markers are locked (not draggable) by default so
+   panning/zooming/clicking around the map can never accidentally move a
+   tree. Double-clicking a marker unlocks it — this glow + pulse + grab
+   cursor is the only visual cue that dragging is currently armed. */
+.flora-tree-marker.flora-marker-unlocked {
+  filter: drop-shadow(0 0 0 rgba(224, 167, 58, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  animation: flora-marker-pulse 1.1s ease-in-out infinite;
+  cursor: grab;
+}
+.flora-tree-marker.flora-marker-unlocked:active {
+  cursor: grabbing;
+  animation: none;
+}
+@keyframes flora-marker-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 rgba(224, 167, 58, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 7px rgba(224, 167, 58, 0.95)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  }
+}
+
+/* Crosshair cursor while placing a new tree */
+.leaflet-container.flora-add-tree-cursor,
+.leaflet-container.flora-add-tree-cursor.leaflet-grab,
+.leaflet-container.flora-add-tree-cursor.leaflet-grab .leaflet-interactive {
+  cursor: crosshair !important;
+}
+
+@keyframes flora-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.leaflet-popup-content-wrapper {
+  background: var(--color-bark-850);
+  color: var(--color-paper-100);
+  border-radius: 6px;
+  border: 1px solid var(--color-hairline);
+}
+.leaflet-popup-tip {
+  background: var(--color-bark-850);
+}
+.flora-popup {
+  font-family: var(--font-sans);
+  min-width: 200px;
+}
+.flora-popup-id {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-flag);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+.flora-popup-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--color-hairline);
+}
+.flora-popup-row span {
+  color: var(--color-bark-500);
+}
+.flora-popup-row strong {
+  color: var(--color-paper-100);
+  font-weight: 500;
+  text-align: right;
+}
+.flora-popup-hint {
+  font-size: 10.5px;
+  color: var(--color-bark-500);
+  margin-top: 6px;
+  line-height: 1.4;
+  font-style: italic;
+}
+.flora-popup-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.flora-popup-actions button {
+  flex: 1;
+  border: 1px solid var(--color-hairline);
+  background: var(--color-bark-800);
+  color: var(--color-paper-100);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.flora-popup-actions button:hover {
+  background: var(--color-bark-700);
+}
+.flora-popup-actions button.danger {
+  color: var(--color-danger);
+}
+
+/* ---- AG Grid theme overrides to match the ledger palette ---- */
+.flora-grid {
+  --ag-background-color: var(--color-paper-100);
+  --ag-odd-row-background-color: var(--color-paper-200);
+  --ag-header-background-color: var(--color-bark-850);
+  --ag-header-foreground-color: var(--color-paper-100);
+  --ag-foreground-color: #1c241c;
+  --ag-border-color: var(--color-paper-300);
+  --ag-row-hover-color: #dfe3d2;
+  --ag-selected-row-background-color: #d6e3d9;
+  --ag-font-family: var(--font-sans);
+  --ag-font-size: 12.5px;
+  --ag-header-height: 34px;
+  --ag-row-height: 30px;
+  --ag-range-selection-border-color: var(--color-flag);
+}
+.flora-cell-missing {
+  background-color: rgba(193, 80, 63, 0.12) !important;
+}
+.flora-row-selected {
+  outline: 2px solid var(--color-selected);
+  outline-offset: -2px;
+}
+.flora-row-unsaved {
+  background-color: rgba(139, 111, 176, 0.12) !important;
+}
+
+/* ---- Shared form input styling (modals) ---- */
+.flora-input {
+  width: 100%;
+  background: var(--color-bark-900);
+  border: 1px solid var(--color-hairline);
+  border-radius: 5px;
+  padding: 6px 9px;
+  font-size: 13px;
+  color: var(--color-paper-100);
+}
+.flora-input:focus {
+  outline: none;
+  border-color: var(--color-flag);
+}
+.flora-input::placeholder {
+  color: var(--color-bark-500);
+}
